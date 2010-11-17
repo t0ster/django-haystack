@@ -69,6 +69,9 @@ class SearchField(object):
                     raise SearchFieldError("The model '%s' does not have a model_attr '%s'." % (repr(current_object), attr))
                 
                 current_object = getattr(current_object, attr, None)
+                # If we have `model_instance__some_callable__its_attr`
+                if callable(current_object):
+                    current_object = current_object()
                 
                 if current_object is None:
                     if self.has_default():

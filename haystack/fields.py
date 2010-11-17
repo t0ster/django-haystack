@@ -50,6 +50,16 @@ class SearchField(object):
         if self.use_template:
             return self.prepare_template(obj)
         elif self.model_attr is not None:
+            # If we have dynamically generated attribute, that has
+            # `__` in it's name, for example
+            # `model_insatance.some__dynamic__attr` we need to handle
+            # such case
+            if '__' in self.model_attr:
+                try:
+                    return getattr(obj, self.model_attr)
+                except AttributeError:
+                    pass
+
             # Check for `__` in the field for looking through the relation.
             attrs = self.model_attr.split('__')
             current_object = obj

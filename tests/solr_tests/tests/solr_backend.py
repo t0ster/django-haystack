@@ -10,7 +10,7 @@ from haystack.backends.solr_backend import SearchBackend, SearchQuery
 from haystack.exceptions import HaystackError
 from haystack.query import SearchQuerySet, RelatedSearchQuerySet, SQ
 from haystack.sites import SearchSite
-from core.models import MockModel, AnotherMockModel
+from core.models import MockModel, AnotherMockModel, MockTag
 try:
     set
 except NameError:
@@ -21,6 +21,7 @@ class SolrMockSearchIndex(indexes.RealTimeSearchIndex):
     text = indexes.CharField(document=True, use_template=True)
     name = indexes.CharField(model_attr='author')
     pub_date = indexes.DateField(model_attr='pub_date')
+    tag0_0_0name = indexes.CharField(model_attr='tag__name')
 
 
 class SolrMaintainTypeMockSearchIndex(indexes.RealTimeSearchIndex):
@@ -57,6 +58,7 @@ class SolrSearchBackendTestCase(TestCase):
             mock.id = i
             mock.author = 'daniel%s' % i
             mock.pub_date = datetime.date(2009, 2, 25) - datetime.timedelta(days=i)
+            mock.tag = MockTag(name='tag%s' % i)
             self.sample_objs.append(mock)
     
     def tearDown(self):
@@ -69,7 +71,7 @@ class SolrSearchBackendTestCase(TestCase):
         
         # Check what Solr thinks is there.
         self.assertEqual(self.raw_solr.search('*:*').hits, 3)
-        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': '1', 'django_ct': 'core.mockmodel', 'name': 'daniel1', 'text': 'Indexed!\n1', 'pub_date': '2009-02-24T00:00:00Z', 'id': 'core.mockmodel.1'}, {'django_id': '2', 'django_ct': 'core.mockmodel', 'name': 'daniel2', 'text': 'Indexed!\n2', 'pub_date': '2009-02-23T00:00:00Z', 'id': 'core.mockmodel.2'}, {'django_id': '3', 'django_ct': 'core.mockmodel', 'name': 'daniel3', 'text': 'Indexed!\n3', 'pub_date': '2009-02-22T00:00:00Z', 'id': 'core.mockmodel.3'}])
+        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': '1', 'name': 'daniel1', 'text': 'Indexed!\n1', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag1', 'pub_date': '2009-02-24T00:00:00Z', 'id': 'core.mockmodel.1'}, {'django_id': '2', 'name': 'daniel2', 'text': 'Indexed!\n2', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag2', 'pub_date': '2009-02-23T00:00:00Z', 'id': 'core.mockmodel.2'}, {'django_id': '3', 'name': 'daniel3', 'text': 'Indexed!\n3', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag3', 'pub_date': '2009-02-22T00:00:00Z', 'id': 'core.mockmodel.3'}])
     
     def test_remove(self):
         self.sb.update(self.smmi, self.sample_objs)
@@ -77,7 +79,7 @@ class SolrSearchBackendTestCase(TestCase):
         
         self.sb.remove(self.sample_objs[0])
         self.assertEqual(self.raw_solr.search('*:*').hits, 2)
-        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': '2', 'django_ct': 'core.mockmodel', 'name': 'daniel2', 'text': 'Indexed!\n2', 'pub_date': '2009-02-23T00:00:00Z', 'id': 'core.mockmodel.2'}, {'django_id': '3', 'django_ct': 'core.mockmodel', 'name': 'daniel3', 'text': 'Indexed!\n3', 'pub_date': '2009-02-22T00:00:00Z', 'id': 'core.mockmodel.3'}])
+        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': '2', 'name': 'daniel2', 'text': 'Indexed!\n2', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag2', 'pub_date': '2009-02-23T00:00:00Z', 'id': 'core.mockmodel.2'}, {'django_id': '3', 'name': 'daniel3', 'text': 'Indexed!\n3', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag3', 'pub_date': '2009-02-22T00:00:00Z', 'id': 'core.mockmodel.3'}])
     
     def test_clear(self):
         self.sb.update(self.smmi, self.sample_objs)
@@ -149,8 +151,8 @@ class SolrSearchBackendTestCase(TestCase):
     def test_build_schema(self):
         (content_field_name, fields) = self.sb.build_schema(self.site.all_searchfields())
         self.assertEqual(content_field_name, 'text')
-        self.assertEqual(len(fields), 3)
-        self.assertEqual(fields, [{'indexed': 'true', 'type': 'text', 'field_name': 'text', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'date', 'field_name': 'pub_date', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'name', 'multi_valued': 'false'}])
+        self.assertEqual(len(fields), 4)
+        self.assertEqual(fields, [{'indexed': 'true', 'type': 'text', 'field_name': 'text', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'date', 'field_name': 'pub_date', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'name', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'tag0_0_0name', 'multi_valued': 'false'}])
     
     def test_verify_type(self):
         import haystack
@@ -161,6 +163,13 @@ class SolrSearchBackendTestCase(TestCase):
         self.assertEqual(self.sb.search('*:*')['hits'], 3)
         self.assertEqual([result.month for result in self.sb.search('*:*')['results']], [u'02', u'02', u'02'])
 
+    def test_access_dotattributes(self):
+        self.sb.update(self.smmi, self.sample_objs)
+        self.assertEqual(self.raw_solr.search('*:*').hits, 3)
+        for i, search_result in enumerate(SearchQuerySet().all()):
+            self.assertEqual(search_result.tag.name, search_result.tag0_0_0name)
+            self.assertEqual(search_result.tag.name, 'tag%s' % (i + 1))
+        
 
 class CaptureHandler(logging.Handler):
     logs_seen = []
@@ -178,6 +187,7 @@ class FailedSolrSearchBackendTestCase(TestCase):
             mock.id = i
             mock.author = 'daniel%s' % i
             mock.pub_date = datetime.date(2009, 2, 25) - datetime.timedelta(days=i)
+            mock.tag = MockTag(name='tag%s' % i)
             self.sample_objs.append(mock)
         
         # Stow.

@@ -5,10 +5,13 @@ from django.db import models
 from django.utils.encoding import force_unicode
 from django.utils.text import capfirst
 
+from haystack import site
+from haystack.utils.dotattributes import BaseResult, Null
+
 
 # Not a Django model, but tightly tied to them and there doesn't seem to be a
 # better spot in the tree.
-class SearchResult(object):
+class SearchResult(BaseResult):
     """
     A single search result. The actual object is loaded lazily by accessing
     object; until then this object only stores the model, pk, and score.
@@ -27,6 +30,7 @@ class SearchResult(object):
         self._additional_fields = []
         self.stored_fields = None
         self.log = logging.getLogger('haystack')
+        self._index_class = type(site.get_index(self.model))
         
         for key, value in kwargs.items():
             if not key in self.__dict__:
@@ -39,8 +43,17 @@ class SearchResult(object):
     def __unicode__(self):
         return force_unicode(self.__repr__())
     
-    def __getattr__(self, attr):
-        return self.__dict__.get(attr, None)
+    def __getattribute__(self, name):
+        try:
+            # Because of we are subclass of BaseResult we can do
+            # res.some.attr.another.attr
+            attr = super(SearchResult, self).__getattribute__(name)
+        except AttributeError:
+            # We could use methods defined in SearchIndex
+            attr = self._index_class.__dict__.get(name, None)
+            if callable(attr):
+                return lambda *args, **kwargs: attr(self, *args, **kwargs)
+        return attr
     
     def _get_object(self):
         if self._object is None:

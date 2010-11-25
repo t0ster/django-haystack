@@ -56,18 +56,23 @@ class SearchField(object):
             # such case
             if '__' in self.model_attr:
                 try:
-                    return getattr(obj, self.model_attr)
+                    current_object = getattr(obj, self.model_attr)
+                    if callable(current_object):
+                        current_object = current_object()
+                    return current_object
                 except AttributeError:
                     pass
 
             # Check for `__` in the field for looking through the relation.
             attrs = self.model_attr.split('__')
             current_object = obj
+            if callable(current_object):
+                current_object = current_object()
             
             for attr in attrs:
                 if not hasattr(current_object, attr):
                     raise SearchFieldError("The model '%s' does not have a model_attr '%s'." % (repr(current_object), attr))
-                
+
                 current_object = getattr(current_object, attr, None)
                 # If we have `model_instance__some_callable__its_attr`
                 if callable(current_object):
@@ -86,10 +91,7 @@ class SearchField(object):
                         break
                     else:
                         raise SearchFieldError("The model '%s' has an empty model_attr '%s' and doesn't allow a default or null value." % (repr(current_object), attr))
-            
-            if callable(current_object):
-                return current_object()
-            
+                        
             return current_object
         
         if self.has_default():

@@ -6,7 +6,7 @@ from django.db.models.loading import get_model
 from django.utils.encoding import force_unicode
 from haystack.backends import BaseSearchBackend, BaseSearchQuery, log_query
 from haystack.exceptions import MissingDependency, MoreLikeThisError
-from haystack.fields import DateField, DateTimeField, IntegerField, FloatField, BooleanField, MultiValueField
+from haystack.fields import DateField, DateTimeField, IntegerField, FloatField, BooleanField, MultiValueField, MultiValueIntegerField
 from haystack.models import SearchResult
 from haystack.utils import get_identifier
 try:
@@ -330,6 +330,8 @@ class SearchBackend(BaseSearchBackend):
                 field_data['type'] = 'boolean'
             elif isinstance(field_class, MultiValueField):
                 field_data['multi_valued'] = 'true'
+            if isinstance(field_class, MultiValueIntegerField):
+                field_data['type'] = 'slong'
             
             # Do this last to override `text` fields.
             if field_class.indexed is False:

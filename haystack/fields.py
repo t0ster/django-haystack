@@ -216,3 +216,7 @@ class MultiValueField(SearchField):
             return None
         
         return list(value)
+
+
+class MultiValueIntegerField(MultiValueField):
+    pass

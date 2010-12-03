@@ -4,12 +4,12 @@ from copy import deepcopy
 from time import time
 from django.conf import settings
 from django.core import signals
-from django.db.models import Q
 from django.db.models.base import ModelBase
 from django.utils import tree
 from django.utils.encoding import force_unicode
-from haystack.constants import VALID_FILTERS, FILTER_SEPARATOR
+from haystack.constants import VALID_FILTERS
 from haystack.exceptions import SearchBackendError, MoreLikeThisError, FacetingError
+from haystack.query_utils import SQ, SearchNode
 try:
     set
 except NameError:
@@ -169,77 +169,6 @@ class BaseSearchBackend(object):
 
 # Alias for easy loading within SearchQuery objects.
 SearchBackend = BaseSearchBackend
-
-
-class SearchNode(tree.Node):
-    """
-    Manages an individual condition within a query.
-    
-    Most often, this will be a lookup to ensure that a certain word or phrase
-    appears in the documents being indexed. However, it also supports filtering
-    types (such as 'lt', 'gt', 'in' and others) for more complex lookups.
-    
-    This object creates a tree, with children being a list of either more
-    ``SQ`` objects or the expressions/values themselves.
-    """
-    AND = 'AND'
-    OR = 'OR'
-    default = AND
-    
-    def __repr__(self):
-        return '<SQ: %s %s>' % (self.connector, self.as_query_string(self._repr_query_fragment_callback))
-    
-    def _repr_query_fragment_callback(self, field, filter_type, value):
-        return '%s%s%s=%s' % (field, FILTER_SEPARATOR, filter_type, force_unicode(value).encode('utf8'))
-    
-    def as_query_string(self, query_fragment_callback):
-        """
-        Produces a portion of the search query from the current SQ and its
-        children.
-        """
-        result = []
-        
-        for child in self.children:
-            if hasattr(child, 'as_query_string'):
-                result.append(child.as_query_string(query_fragment_callback))
-            else:
-                expression, value = child
-                field, filter_type = self.split_expression(expression)
-                result.append(query_fragment_callback(field, filter_type, value))
-        
-        conn = ' %s ' % self.connector
-        query_string = conn.join(result)
-        
-        if query_string:
-            if self.negated:
-                query_string = 'NOT (%s)' % query_string
-            elif len(self.children) != 1:
-                query_string = '(%s)' % query_string
-        
-        return query_string
-    
-    def split_expression(self, expression):
-        """Parses an expression and determines the field and filter type."""
-        parts = expression.split(FILTER_SEPARATOR)
-        field = parts[0]
-        
-        if len(parts) == 1 or parts[-1] not in VALID_FILTERS:
-            filter_type = 'exact'
-        else:
-            filter_type = parts.pop()
-        
-        return (field, filter_type)
-
-
-class SQ(Q, SearchNode):
-    """
-    Manages an individual condition within a query.
-    
-    Most often, this will be a lookup to ensure that a certain word or phrase
-    appears in the documents being indexed. However, it also supports filtering
-    types (such as 'lt', 'gt', 'in' and others) for more complex lookups.
-    """
-    pass
 
 
 class BaseSearchQuery(object):

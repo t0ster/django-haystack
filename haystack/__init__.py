@@ -34,6 +34,9 @@ def load_backend(backend_name=None):
         # backends that ships with haystack, so look there first.
         return __import__('haystack.backends.%s_backend' % backend_name, {}, {}, [''])
     except ImportError, e:
+        if e.message != 'No module named %s_backend':
+            raise
+
         # If the import failed, we might be looking for a search backend 
         # distributed external to haystack. So we'll try that next.
         try:

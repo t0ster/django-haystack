@@ -169,7 +169,14 @@ class SolrSearchBackendTestCase(TestCase):
         for i, search_result in enumerate(SearchQuerySet().all()):
             self.assertEqual(search_result.tag.name, search_result.tag0_0_0name)
             self.assertEqual(search_result.tag.name, 'tag%s' % (i + 1))
-        
+
+    def test_filter_dotattributes(self):
+        self.sb.update(self.smmi, self.sample_objs)
+        sqs1 = SearchQuerySet().filter(tag__name='tag1')
+        self.assertEqual(sqs1.count(), 1)
+        sqs2 = SearchQuerySet().filter(tag0_0_0name='tag1')
+        self.assertEqual(sqs2.count(), 1)
+        self.assertEqual(sqs1[0].pk, sqs2[0].pk)
 
 class CaptureHandler(logging.Handler):
     logs_seen = []

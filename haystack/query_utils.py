@@ -2,6 +2,7 @@ import re
 
 from django.db.models import Q
 from django.utils import tree
+from django.utils.encoding import force_unicode
 
 from haystack.utils.dotattributes import SEPARATOR
 from haystack.constants import VALID_FILTERS, FILTER_SEPARATOR

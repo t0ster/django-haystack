@@ -5,8 +5,8 @@ from django.db import models
 from django.utils.encoding import force_unicode
 from django.utils.text import capfirst
 
-from haystack import site
 from haystack.utils.dotattributes import BaseResult, Null
+from haystack.sites import NotRegistered
 
 
 # Not a Django model, but tightly tied to them and there doesn't seem to be a
@@ -30,7 +30,7 @@ class SearchResult(BaseResult):
         self._additional_fields = []
         self.stored_fields = None
         self.log = logging.getLogger('haystack')
-        self._index_class = type(site.get_index(self.model))
+        self._index_class = None
         
         for key, value in kwargs.items():
             if not key in self.__dict__:
@@ -49,6 +49,16 @@ class SearchResult(BaseResult):
             # res.some.attr.another.attr
             attr = super(SearchResult, self).__getattribute__(name)
         except AttributeError:
+            if not self._index_class:
+                from haystack import site
+                # We need this try/except to pass
+                # core.tests.models:SearchResultTestCase.test_init and
+                # core.tests.models:SearchResultTestCase.test_missing_object
+                try:
+                    self._index_class = type(site.get_index(self.model))
+                except NotRegistered:
+                    return None
+
             # We could use methods defined in SearchIndex
             attr = self._index_class.__dict__.get(name, None)
             if callable(attr):

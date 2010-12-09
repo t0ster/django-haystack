@@ -394,7 +394,12 @@ class BaseSearchQuery(object):
         if len(self.models):
             models = ['django_ct:%s.%s' % (model._meta.app_label, model._meta.module_name) for model in self.models]
             models_clause = ' OR '.join(models)
-            final_query = '(%s) AND (%s)' % (query, models_clause)
+            # TODO: this is hack, it doesn't work without this, see
+            # haystack.query_utils L58
+            if '[* TO *]' in query:
+                final_query = '%s AND (%s)' % (query, models_clause)
+            else:
+                final_query = '(%s) AND (%s)' % (query, models_clause)
         else:
             final_query = query
         

@@ -11,7 +11,7 @@ class MockModel(models.Model):
     author = models.CharField(max_length=255)
     foo = models.CharField(max_length=255, blank=True)
     pub_date = models.DateTimeField(default=datetime.datetime.now)
-    tag = models.ForeignKey(MockTag)
+    tag = models.ForeignKey(MockTag, null=True)
     
     def __unicode__(self):
         return self.author

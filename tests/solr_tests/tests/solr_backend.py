@@ -21,7 +21,7 @@ class SolrMockSearchIndex(indexes.RealTimeSearchIndex):
     text = indexes.CharField(document=True, use_template=True)
     name = indexes.CharField(model_attr='author')
     pub_date = indexes.DateField(model_attr='pub_date')
-    tag0_0_0name = indexes.CharField(model_attr='tag__name')
+    tag0_0_0name = indexes.CharField(model_attr='tag__name', null=True)
 
 
 class SolrMaintainTypeMockSearchIndex(indexes.RealTimeSearchIndex):
@@ -177,6 +177,16 @@ class SolrSearchBackendTestCase(TestCase):
         sqs2 = SearchQuerySet().filter(tag0_0_0name='tag1')
         self.assertEqual(sqs2.count(), 1)
         self.assertEqual(sqs1[0].pk, sqs2[0].pk)
+
+    def test_exclude_none(self):
+        self.sb.update(self.smmi, self.sample_objs)
+        all_results_count = SearchQuerySet().all().count()
+        sr = SearchQuerySet().all()[0]
+        sr.object.tag = None
+        self.smmi.update_object(sr.object)
+        with_tag_results_count = SearchQuerySet().exclude(tag__name=None).count()
+        self.assertEqual(all_results_count - 1, with_tag_results_count)
+
 
 class CaptureHandler(logging.Handler):
     logs_seen = []

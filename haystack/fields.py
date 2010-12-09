@@ -1,6 +1,10 @@
 import re
+import cPickle as pickle
+import base64
+
 from django.utils import datetime_safe
 from django.template import loader, Context
+
 from haystack.exceptions import SearchFieldError
 
 
@@ -220,3 +224,23 @@ class MultiValueField(SearchField):
 
 class MultiValueIntegerField(MultiValueField):
     pass
+
+
+class SimpleCharField(CharField):
+    """
+    Used to generate filed with type string in solr schema.xml
+    """
+    pass
+
+
+class PickleField(SearchField):
+    def prepare(self, obj):
+        field_data = super(PickleField, self).prepare(obj)
+        return base64.b64encode(pickle.dumps(field_data))
+
+    def convert(self, value):
+        if value is None:
+            return None
+        # Sometimes solr returns data that can not be unpickled, so we
+        # need base64 encode/decode
+        return pickle.loads(base64.b64decode(value))

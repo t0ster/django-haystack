@@ -59,6 +59,52 @@ class CharFieldTestCase(TestCase):
         
         self.assertEqual(author.prepare(mock), None)
 
+        # Lookup callable
+        mock = MockModel()
+        hello = CharField(model_attr='hello')
+
+        self.assertEqual(hello.prepare(mock), 'World!')
+
+        #
+        mock = MockModel()
+        mock.one__two__three = 'ok'
+        one_two = CharField(model_attr='one__two__three')
+
+        self.assertEqual(one_two.prepare(mock), 'ok')
+
+        #
+        mock = MockModel()
+        mock.one__two__three = lambda: 'ok'
+        one_two = CharField(model_attr='one__two__three')
+
+        self.assertEqual(one_two.prepare(mock), 'ok')
+
+        #
+        mock = MockModel()
+        mock_tag = MockTag()
+        mock_tag.url = lambda: 'ok'
+        mock.tag__tag = mock_tag
+        one_two = CharField(model_attr='tag__tag__url')
+
+        self.assertEqual(one_two.prepare(mock), 'ok')
+
+        #
+        mock = MockModel()
+        mock_tag = MockTag()
+        mock_tag.url = 'ok'
+        mock.tag__tag = lambda: mock_tag
+        one_two = CharField(model_attr='tag__tag__url')
+
+        self.assertEqual(one_two.prepare(mock), 'ok')
+
+        #
+        mock = MockModel()
+        mock.user = MockModel()
+        mock.user.username = u'root'
+        username = CharField(model_attr='user__username')
+
+        self.assertEqual(username.prepare(mock), u'root')
+
 
 class IntegerFieldTestCase(TestCase):
     def test_init(self):

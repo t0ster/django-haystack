@@ -25,6 +25,53 @@ def get_identifier(obj_or_string):
     return u"%s.%s.%s" % (obj_or_string._meta.app_label, obj_or_string._meta.module_name, obj_or_string._get_pk_val())
 
 
+def check_attr(obj, attr_name):
+    """
+    *Example*:
+
+    if `obj` has 'one__two__three' attribute and
+    `attr_name` is 'one' this will return 'one',
+    if `attr_name` is 'one__two__three__four' will return
+    'one__two__three'
+
+    >>> class C(object): pass
+    >>> c = C()
+    >>> c.some__super = 1
+    >>> c.some__super__duper = 2
+    >>> c.some = C()
+    >>> c.some.shit = 3
+    >>> c.tag__tag = C()
+    >>> c.tag__tag.url = 'url'
+    >>> check_attr(c, 'some__super__bla')
+    'some__super'
+    >>> check_attr(c, 'some__super__duper')
+    'some__super__duper'
+    >>> check_attr(c, 'some__super123__bla')
+    'some'
+    >>> check_attr(c, 'some__shit')
+    'some'
+    >>> check_attr(c, 'some')
+    'some'
+    >>> check_attr(c, 'wtf')
+    >>> check_attr(c, 'wtf__shit')
+    >>> check_attr(c, 'tag__tag__url')
+    'tag__tag'
+    """
+    def proccess(attr1, attr2):
+        attr = '__'.join([attr1, attr2])
+        if hasattr(obj, attr):
+            return attr
+        return attr1
+
+    if hasattr(obj, attr_name):
+        return attr_name
+    splited_attr = attr_name.split('__')
+    attr = reduce(proccess, splited_attr)
+    if not hasattr(obj, attr):
+        return None
+    return attr
+
+
 class Highlighter(object):
     css_class = 'highlighted'
     html_tag = 'span'

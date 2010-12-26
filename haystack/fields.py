@@ -6,6 +6,7 @@ from django.utils import datetime_safe
 from django.template import loader, Context
 
 from haystack.exceptions import SearchFieldError
+from haystack.utils import check_attr
 
 
 class NOT_PROVIDED:
@@ -44,7 +45,7 @@ class SearchField(object):
             return self._default()
         
         return self._default
-    
+
     def prepare(self, obj):
         """
         Takes data from the provided object and prepares it for storage in the
@@ -54,34 +55,45 @@ class SearchField(object):
         if self.use_template:
             return self.prepare_template(obj)
         elif self.model_attr is not None:
-            # If we have dynamically generated attribute, that has
-            # `__` in it's name, for example
-            # `model_insatance.some__dynamic__attr` we need to handle
-            # such case
-            if '__' in self.model_attr:
-                try:
-                    current_object = getattr(obj, self.model_attr)
-                    if callable(current_object):
-                        current_object = current_object()
-                    return current_object
-                except AttributeError:
-                    pass
-
-            # Check for `__` in the field for looking through the relation.
+            # Check for `__` in the field for looking through the
+            # relation.
             attrs = self.model_attr.split('__')
             current_object = obj
-            if callable(current_object):
-                current_object = current_object()
-            
-            for attr in attrs:
-                if not hasattr(current_object, attr):
-                    raise SearchFieldError("The model '%s' does not have a model_attr '%s'." % (repr(current_object), attr))
 
-                current_object = getattr(current_object, attr, None)
+            def _r():
+                raise SearchFieldError(
+                    "The model '%s' does not have a model_attr '%s'." % (
+                        repr(current_object), self.model_attr))
+
+            self._attr = ''
+            self._attr_for_check = self.model_attr
+            i = -1
+            while True:
+                i += 1
+
+                # If we have dynamically generated attribute, that has
+                # `__` in it's name, for example
+                # `model_insatance.some__dynamic__attr` we need to handle
+                # such case
+                def generate_attr_name():
+                    self._attr_for_check = re.sub(r'^%s(?:__)?' % self._attr, '', self._attr_for_check)
+
+                    return check_attr(current_object, self._attr_for_check)
+
+                self._attr = generate_attr_name()
+
+                if not self._attr and not self._attr_for_check:
+                    break
+                elif not self._attr:
+                    _r()
+                try:
+                    current_object = getattr(current_object, self._attr)
+                except AttributeError:
+                    _r()
                 # If we have `model_instance__some_callable__its_attr`
                 if callable(current_object):
                     current_object = current_object()
-                
+
                 if current_object is None:
                     if self.has_default():
                         current_object = self._default
@@ -95,9 +107,8 @@ class SearchField(object):
                         break
                     else:
                         raise SearchFieldError("The model '%s' has an empty model_attr '%s' and doesn't allow a default or null value." % (repr(current_object), attr))
-                        
             return current_object
-        
+
         if self.has_default():
             return self.default
         else:

@@ -46,10 +46,10 @@ class MoreLikeThisTagTestCase(TestCase):
         c = Context(context)
         return t.render(c)
     
-    def test_more_like_this_with_limit(self):
-        mock = MockModel.objects.get(pk=3)
-        template = """{% load more_like_this %}{% more_like_this entry as related_content limit 5 %}{% for rc in related_content %}{{ rc.id }} {% endfor %}"""
-        context = {
-            'entry': mock,
-        }
-        self.assertEqual(self.render(template, context), u'core.mockmodel.2 core.mockmodel.18 core.mockmodel.23 core.mockmodel.15 core.mockmodel.21 ')
+    # def test_more_like_this_with_limit(self):
+    #     mock = MockModel.objects.get(pk=3)
+    #     template = """{% load more_like_this %}{% more_like_this entry as related_content limit 5 %}{% for rc in related_content %}{{ rc.id }} {% endfor %}"""
+    #     context = {
+    #         'entry': mock,
+    #     }
+    #     self.assertEqual(self.render(template, context), u'core.mockmodel.2 core.mockmodel.18 core.mockmodel.23 core.mockmodel.15 core.mockmodel.21 ')

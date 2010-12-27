@@ -78,6 +78,15 @@ class SearchField(object):
                 def generate_attr_name():
                     self._attr_for_check = re.sub(r'^%s(?:__)?' % self._attr, '', self._attr_for_check)
 
+                    # Proccess pidorasen exceptions
+                    if i == 0:
+                        try:
+                            return {
+                                'composition__firm__url': 'composition__firm',
+                            }[self._attr_for_check]
+                        except KeyError:
+                            pass
+
                     return check_attr(current_object, self._attr_for_check)
 
                 self._attr = generate_attr_name()

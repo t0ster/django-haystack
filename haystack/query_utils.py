@@ -96,14 +96,18 @@ class SQ(Q, SearchNode):
     def prepare_kwargs(self, kwargs):
         """
         Replaces kwargs['some__attr'] with kwargs['some0_0_0attr'] and
+        `pk` with `django_id`
 
         Arguments:
         - `kwargs`: kwargs dictionary
         """
         new_kwargs = {}
+        rep_hash = {'pk': 'django_id'}
         for key, val in kwargs.items():
             if '__' in key:
                 key = re.sub(ATTR_REPL_REGEX, SEPARATOR, key)
+            if key in rep_hash:
+                key = rep_hash[key]
             new_kwargs[key] = val
         return new_kwargs
 

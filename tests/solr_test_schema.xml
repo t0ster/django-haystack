@@ -92,6 +92,8 @@
     <field name="average_rating"    type="sfloat"   indexed="true"  stored="true"  multiValued="false" /> 
     <field name="created"    type="date"   indexed="true"  stored="true"  multiValued="false" /> 
     <field name="tag0_0_0name"    type="text"   indexed="true"  stored="true"  multiValued="false" /> 
+    <field name="hello"    type="text"   indexed="true"  stored="true"  multiValued="false" /> 
+    <field name="hello0_0_0funcd0_0_0world"    type="text"   indexed="true"  stored="true"  multiValued="false" /> 
     <field name="tags"    type="text"   indexed="true"  stored="true"  multiValued="true" /> 
     <field name="sites"    type="sint"   indexed="true"  stored="true"  multiValued="true" /> 
   </fields>

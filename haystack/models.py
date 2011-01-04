@@ -5,8 +5,9 @@ from django.db import models
 from django.utils.encoding import force_unicode
 from django.utils.text import capfirst
 
-from haystack.utils.dotattributes import BaseResult, Null
+from haystack.utils.dotattributes import BaseResult
 from haystack.sites import NotRegistered
+from haystack.utils import is_denorm_attr
 
 
 # Not a Django model, but tightly tied to them and there doesn't seem to be a
@@ -44,25 +45,44 @@ class SearchResult(BaseResult):
         return force_unicode(self.__repr__())
     
     def __getattribute__(self, name):
+        # Process special attributes and methods
+        if name in set(
+            ['__dict__', '_additional_fields'] + SearchResult.__dict__.keys()):
+            return object.__getattribute__(self, name)
+
+        # Process attributes that are not search backend fields
+        if (name in self.__dict__ and
+            name not in self._additional_fields and
+            not is_denorm_attr(self, name)
+            ):
+            try:
+                return object.__getattribute__(self, name)
+            except AttributeError:
+                return self.process_attr_error(name)
+
+        # Process dot attributes (attr1.attr2)
         try:
             # Because of we are subclass of BaseResult we can do
             # res.some.attr.another.attr
-            attr = super(SearchResult, self).__getattribute__(name)
+            return super(SearchResult, self).__getattribute__(name)
         except AttributeError:
-            if not self._index_class:
-                from haystack import site
-                # We need this try/except to pass
-                # core.tests.models:SearchResultTestCase.test_init and
-                # core.tests.models:SearchResultTestCase.test_missing_object
-                try:
-                    self._index_class = type(site.get_index(self.model))
-                except NotRegistered:
-                    return None
+            return self.process_attr_error(name)
 
-            # We could use methods defined in SearchIndex
-            attr = self._index_class.__dict__.get(name, None)
-            if callable(attr):
-                return lambda *args, **kwargs: attr(self, *args, **kwargs)
+    def process_attr_error(self, name):
+        if not self._index_class:
+            from haystack import site
+            # We need this try/except to pass
+            # core.tests.models:SearchResultTestCase.test_init and
+            # core.tests.models:SearchResultTestCase.test_missing_object
+            try:
+                self._index_class = type(site.get_index(self.model))
+            except NotRegistered:
+                return None
+
+        # We could use methods defined in SearchIndex
+        attr = self._index_class.__dict__.get(name, None)
+        if callable(attr):
+            return lambda *args, **kwargs: attr(self, *args, **kwargs)
         return attr
     
     def _get_object(self):

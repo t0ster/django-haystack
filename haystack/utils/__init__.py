@@ -5,6 +5,8 @@ try:
 except NameError:
     from sets import Set as set
 
+from haystack.constants import DOTATTR_SEPARATOR
+
 
 IDENTIFIER_REGEX = re.compile('^[\w\d_]+\.[\w\d_]+\.\d+$')
 
@@ -25,7 +27,7 @@ def get_identifier(obj_or_string):
     return u"%s.%s.%s" % (obj_or_string._meta.app_label, obj_or_string._meta.module_name, obj_or_string._get_pk_val())
 
 
-def check_attr(obj, attr_name):
+def check_attr(obj, attr_name, separator='__'):
     """
     *Example*:
 
@@ -56,20 +58,51 @@ def check_attr(obj, attr_name):
     >>> check_attr(c, 'wtf__shit')
     >>> check_attr(c, 'tag__tag__url')
     'tag__tag'
+    >>> c.a0_0_0b = 1
+    >>> check_attr(c, 'a0_0_0b0_0_0c', '0_0_0')
+    'a0_0_0b'
     """
     def proccess(attr1, attr2):
-        attr = '__'.join([attr1, attr2])
+        attr = separator.join([attr1, attr2])
         if hasattr(obj, attr):
             return attr
         return attr1
 
     if hasattr(obj, attr_name):
         return attr_name
-    splited_attr = attr_name.split('__')
+    splited_attr = attr_name.split(separator)
     attr = reduce(proccess, splited_attr)
     if not hasattr(obj, attr):
         return None
     return attr
+
+
+def check_attr_in_dict(obj, attr_name, separator='__'):
+    """
+    >>> class C(object): pass
+    >>> c = C()
+    >>> c.a0_0_0b = 1
+    >>> check_attr_in_dict(c, 'a0_0_0b0_0_0c', '0_0_0')
+    'a0_0_0b'
+    """
+    def proccess(attr1, attr2):
+        attr = separator.join([attr1, attr2])
+        if attr in obj.__dict__:
+            return attr
+        return attr1
+
+    if attr_name in obj.__dict__:
+        return attr_name
+    splited_attr = attr_name.split(separator)
+    attr = reduce(proccess, splited_attr)
+    if not attr in obj.__dict__:
+        return None
+    return attr
+
+
+def is_denorm_attr(obj, name):
+    return bool([attr for attr in obj.__dict__ if \
+                     "%s%s" % (name, DOTATTR_SEPARATOR) in attr])
 
 
 class Highlighter(object):

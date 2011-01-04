@@ -4,8 +4,8 @@ from django.db.models import Q
 from django.utils import tree
 from django.utils.encoding import force_unicode
 
-from haystack.utils.dotattributes import SEPARATOR
-from haystack.constants import VALID_FILTERS, FILTER_SEPARATOR
+from haystack.constants import VALID_FILTERS, FILTER_SEPARATOR, \
+    DOTATTR_SEPARATOR
 
 
 ATTR_REPL_REGEX = re.compile(r'__(?!%s)' % '|'.join(VALID_FILTERS))
@@ -105,7 +105,7 @@ class SQ(Q, SearchNode):
         rep_hash = {'pk': 'django_id'}
         for key, val in kwargs.items():
             if '__' in key:
-                key = re.sub(ATTR_REPL_REGEX, SEPARATOR, key)
+                key = re.sub(ATTR_REPL_REGEX, DOTATTR_SEPARATOR, key)
             if key in rep_hash:
                 key = rep_hash[key]
             new_kwargs[key] = val

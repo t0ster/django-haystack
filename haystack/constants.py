@@ -10,3 +10,6 @@ REPR_OUTPUT_SIZE = 20
 
 # Number of SearchResults to load at a time.
 ITERATOR_LOAD_PER_QUERY = 10
+
+# Separator that is used to store denormalized data
+DOTATTR_SEPARATOR = '0_0_0'

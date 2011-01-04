@@ -3,6 +3,12 @@ import datetime
 from django.db import models
 
 
+class Mock(object):
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
 class MockTag(models.Model):
     name = models.CharField(max_length=32)
 
@@ -18,6 +24,8 @@ class MockModel(models.Model):
     
     def hello(self):
         return 'World!'
+
+    hello__func = lambda *args, **kwargs: Mock(world='Hello World!')
 
 
 class AnotherMockModel(models.Model):

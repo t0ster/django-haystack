@@ -22,6 +22,8 @@ class SolrMockSearchIndex(indexes.RealTimeSearchIndex):
     name = indexes.CharField(model_attr='author')
     pub_date = indexes.DateField(model_attr='pub_date')
     tag0_0_0name = indexes.CharField(model_attr='tag__name', null=True)
+    hello = indexes.CharField(model_attr='hello')
+    hello0_0_0funcd0_0_0world = indexes.CharField(model_attr='hello__func__world')
 
 
 class SolrMaintainTypeMockSearchIndex(indexes.RealTimeSearchIndex):
@@ -71,7 +73,7 @@ class SolrSearchBackendTestCase(TestCase):
         
         # Check what Solr thinks is there.
         self.assertEqual(self.raw_solr.search('*:*').hits, 3)
-        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': '1', 'name': 'daniel1', 'text': 'Indexed!\n1', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag1', 'pub_date': '2009-02-24T00:00:00Z', 'id': 'core.mockmodel.1'}, {'django_id': '2', 'name': 'daniel2', 'text': 'Indexed!\n2', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag2', 'pub_date': '2009-02-23T00:00:00Z', 'id': 'core.mockmodel.2'}, {'django_id': '3', 'name': 'daniel3', 'text': 'Indexed!\n3', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag3', 'pub_date': '2009-02-22T00:00:00Z', 'id': 'core.mockmodel.3'}])
+        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': 1, 'name': 'daniel1', 'text': 'Indexed!\n1', 'id': 'core.mockmodel.1', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag1', 'hello0_0_0funcd0_0_0world': 'Hello World!', 'pub_date': '2009-02-24T00:00:00Z', 'hello': 'World!'}, {'django_id': 2, 'name': 'daniel2', 'text': 'Indexed!\n2', 'id': 'core.mockmodel.2', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag2', 'hello0_0_0funcd0_0_0world': 'Hello World!', 'pub_date': '2009-02-23T00:00:00Z', 'hello': 'World!'}, {'django_id': 3, 'name': 'daniel3', 'text': 'Indexed!\n3', 'id': 'core.mockmodel.3', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag3', 'hello0_0_0funcd0_0_0world': 'Hello World!', 'pub_date': '2009-02-22T00:00:00Z', 'hello': 'World!'}])
     
     def test_remove(self):
         self.sb.update(self.smmi, self.sample_objs)
@@ -79,7 +81,7 @@ class SolrSearchBackendTestCase(TestCase):
         
         self.sb.remove(self.sample_objs[0])
         self.assertEqual(self.raw_solr.search('*:*').hits, 2)
-        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': '2', 'name': 'daniel2', 'text': 'Indexed!\n2', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag2', 'pub_date': '2009-02-23T00:00:00Z', 'id': 'core.mockmodel.2'}, {'django_id': '3', 'name': 'daniel3', 'text': 'Indexed!\n3', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag3', 'pub_date': '2009-02-22T00:00:00Z', 'id': 'core.mockmodel.3'}])
+        self.assertEqual(self.raw_solr.search('*:*').docs, [{'django_id': 2, 'name': 'daniel2', 'text': 'Indexed!\n2', 'id': 'core.mockmodel.2', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag2', 'hello0_0_0funcd0_0_0world': 'Hello World!', 'pub_date': '2009-02-23T00:00:00Z', 'hello': 'World!'}, {'django_id': 3, 'name': 'daniel3', 'text': 'Indexed!\n3', 'id': 'core.mockmodel.3', 'django_ct': 'core.mockmodel', 'tag0_0_0name': 'tag3', 'hello0_0_0funcd0_0_0world': 'Hello World!', 'pub_date': '2009-02-22T00:00:00Z', 'hello': 'World!'}])
     
     def test_clear(self):
         self.sb.update(self.smmi, self.sample_objs)
@@ -109,7 +111,7 @@ class SolrSearchBackendTestCase(TestCase):
         
         self.assertEqual(self.sb.search(''), {'hits': 0, 'results': []})
         self.assertEqual(self.sb.search('*:*')['hits'], 3)
-        self.assertEqual([result.pk for result in self.sb.search('*:*')['results']], ['1', '2', '3'])
+        self.assertEqual([result.pk for result in self.sb.search('*:*')['results']], [1, 2, 3])
         
         self.assertEqual(self.sb.search('', highlight=True), {'hits': 0, 'results': []})
         self.assertEqual(self.sb.search('Index', highlight=True)['hits'], 3)
@@ -151,8 +153,8 @@ class SolrSearchBackendTestCase(TestCase):
     def test_build_schema(self):
         (content_field_name, fields) = self.sb.build_schema(self.site.all_searchfields())
         self.assertEqual(content_field_name, 'text')
-        self.assertEqual(len(fields), 4)
-        self.assertEqual(fields, [{'indexed': 'true', 'type': 'text', 'field_name': 'text', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'date', 'field_name': 'pub_date', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'name', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'tag0_0_0name', 'multi_valued': 'false'}])
+        self.assertEqual(len(fields), 6)
+        self.assertEqual(fields, [{'indexed': 'true', 'type': 'text', 'field_name': 'name', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'text', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'tag0_0_0name', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'hello0_0_0funcd0_0_0world', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'date', 'field_name': 'pub_date', 'multi_valued': 'false'}, {'indexed': 'true', 'type': 'text', 'field_name': 'hello', 'multi_valued': 'false'}])
     
     def test_verify_type(self):
         import haystack
@@ -169,6 +171,7 @@ class SolrSearchBackendTestCase(TestCase):
         for i, search_result in enumerate(SearchQuerySet().all()):
             self.assertEqual(search_result.tag.name, search_result.tag0_0_0name)
             self.assertEqual(search_result.tag.name, 'tag%s' % (i + 1))
+            self.assertEqual(search_result.hello(), 'World!')
 
     def test_filter_dotattributes(self):
         self.sb.update(self.smmi, self.sample_objs)

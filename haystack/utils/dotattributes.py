@@ -5,73 +5,119 @@ if 0_0_0 is separator
 
 See `BaseResult` docstring for example.
 """
-SEPARATOR = '0_0_0'
+from haystack.constants import DOTATTR_SEPARATOR
+from haystack.utils import is_denorm_attr
 
 
-class Null(object):
-    def __repr__(self):
-        return "<Null>"
+class ResultAttr(object):
+    """
+    Proxy class, grabbed from
+    http://code.activestate.com/recipes/496741-object-proxying/
+    """
+    __slots__ = ["_obj", "__weakref__"]
 
-    def __str__(self):
-        return ''
+    def __init__(self, name, obj, result):
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_obj", obj)
+        object.__setattr__(self, "_result", result)
+
+    #
+    # proxying (special cases)
+    #
+    def __getattribute__(self, name):
+        try:
+            return getattr(object.__getattribute__(self, "_obj"), name)
+        except AttributeError:
+            name = "%s%s%s" % (object.__getattribute__(self, "_name"), DOTATTR_SEPARATOR, name)
+            return getattr(object.__getattribute__(self, "_result"), name)
+
+    def __delattr__(self, name):
+        delattr(object.__getattribute__(self, "_obj"), name)
+
+    def __setattr__(self, name, value):
+        setattr(object.__getattribute__(self, "_obj"), name, value)
 
     def __nonzero__(self):
-        return False
+        return bool(object.__getattribute__(self, "_obj"))
 
+    def __str__(self):
+        return str(object.__getattribute__(self, "_obj"))
 
-class ResultAttrFactory(type):
-    _cache = {}
+    def __repr__(self):
+        return repr(object.__getattribute__(self, "_obj"))
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def __cmp__(self, other):
+        _obj = object.__getattribute__(self, "_obj")
+        return cmp(_obj, other)
+
+    def __eq__(self, other):
+        _obj = object.__getattribute__(self, "_obj")
+        return _obj == other
+
+    def __float__(self):
+        _obj = object.__getattribute__(self, "_obj")
+        return float(_obj)
+
+    def __abs__(self):
+        _obj = object.__getattribute__(self, "_obj")
+        return abs(_obj)
+
+    #
+    # factories
+    #
+    _special_names = [
+        '__abs__', '__add__', '__and__', '__call__', '__cmp__', '__coerce__',
+        '__contains__', '__delitem__', '__delslice__', '__div__', '__divmod__',
+        '__eq__', '__float__', '__floordiv__', '__ge__', '__getitem__',
+        '__getslice__', '__gt__', '__hash__', '__hex__', '__iadd__', '__iand__',
+        '__idiv__', '__idivmod__', '__ifloordiv__', '__ilshift__', '__imod__',
+        '__imul__', '__int__', '__invert__', '__ior__', '__ipow__', '__irshift__',
+        '__isub__', '__iter__', '__itruediv__', '__ixor__', '__le__', '__len__',
+        '__long__', '__lshift__', '__lt__', '__mod__', '__mul__', '__ne__',
+        '__neg__', '__oct__', '__or__', '__pos__', '__pow__', '__radd__',
+        '__rand__', '__rdiv__', '__rdivmod__', '__reduce__', '__reduce_ex__',
+        '__repr__', '__reversed__', '__rfloorfiv__', '__rlshift__', '__rmod__',
+        '__rmul__', '__ror__', '__rpow__', '__rrshift__', '__rshift__', '__rsub__',
+        '__rtruediv__', '__rxor__', '__setitem__', '__setslice__', '__sub__',
+        '__truediv__', '__xor__', 'next',
+    ]
 
     @classmethod
-    def prepare(cls, base, result):
-        dict_ = ResultAttr.__dict__.copy()
-        dict_.update({
-                '_ResultAttr__base': base,
-                '_ResultAttr__result': result})
-        return ('ResultAttr', (base,), dict_)
+    def _create_class_proxy(cls, theclass):
+        """creates a proxy for the given class"""
 
-    def __new__(cls, base, result):
-        if (base, result) in cls._cache:
-            type_ = cls._cache[(base, result)]
-        else:
-            type_ = super(ResultAttrFactory, cls).__new__(
-                cls, *cls.prepare(base, result))
-            cls._cache[(base, result)] = type_
-        return type_
+        def make_method(name):
+            def method(self, *args, **kw):
+                return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
+            return method
 
-    def __init__(cls, base, result):
-        pass
+        namespace = {}
+        for name in cls._special_names:
+            if hasattr(theclass, name) and not hasattr(cls, name):
+                namespace[name] = make_method(name)
+        return type("%s(%s)" % (cls.__name__, theclass.__name__), (cls,), namespace)
 
-
-class ResultAttr:
-    """Should be used only with ResultAttrFactory"""
-    @staticmethod
-    def __new__(cls, arg1, name):
-        return cls.__base.__new__(cls, arg1)
-
-    def __init__(self, arg1, name):
-        self.__name = name
-        super(self.__class__, self).__init__(arg1)
-
-    def get_result_attr(self, name):
-        if self.__result.is_denorm_attr(name):
-            attr = getattr(self.__result, name, None)
-        else:
-            attr = getattr(self.__result, name)
-        return attr
-
-    def __getattr__(self, name):
-        lookup_name = "%s%s%s" % (self.__name, SEPARATOR, name)
-        attr = self.get_result_attr(lookup_name)
-        if type(attr).__name__ == 'ResultAttr':
-            type_ = attr.__base
-        elif attr is None:
-            type_ = Null
-        else:
-            type_ = type(attr)
-        result_attr = ResultAttrFactory(
-            type_, self.__result)(attr, lookup_name)
-        return result_attr
+    def __new__(cls, obj, *args, **kwargs):
+        """
+        creates an proxy instance referencing `obj`. (obj, *args, **kwargs) are
+        passed to this class' __init__, so deriving classes can define an 
+        __init__ method of their own.
+        note: _class_proxy_cache is unique per deriving class (each deriving
+        class must hold its own cache)
+        """
+        try:
+            cache = cls.__dict__["_class_proxy_cache"]
+        except KeyError:
+            cls._class_proxy_cache = cache = {}
+        try:
+            theclass = cache[obj.__class__]
+        except KeyError:
+            cache[obj.__class__] = theclass = cls._create_class_proxy(obj.__class__)
+        ins = object.__new__(theclass)
+        return ins
 
 
 class BaseResult(object):
@@ -88,20 +134,22 @@ class BaseResult(object):
     >>> r = Result()
     >>> r.x
     35
-    >>> type(r.x)
-    <type 'int'>
+    >>> r.x + 40  # r.a.b
+    75
+    >>> r.x == r.a.b
+    False
     >>> r.a.b
     40
     >>> r.y
     5
-    >>> type(r.y)  # doctest:+ELLIPSIS
-    <class '....ResultAttr'>
+    >>> # r.y__a.__class__
+    >>> # <class ....ResultAttr...>
     >>> r.y.a
     3
     >>> r.y.b
     'hello'
     >>> r.y.c  # Is there any way to raise AtrributeError here?
-    <Null>
+    None
     >>> r.y.d  # doctest:+ELLIPSIS
     Traceback (most recent call last):
     ...
@@ -112,34 +160,35 @@ class BaseResult(object):
     3
     >>> r.y__c__x
     [1, 2, 3]
+    >>> r.y__c.x
+    [1, 2, 3]
+    >>> r.y0_0_0c = 1
+    >>> r.y__c.x
+    [1, 2, 3]
+    >>> r.a.b()
+    40
     """
-    def is_denorm_attr(self, name):
-        return bool([k for k in self.__dict__.keys() if \
-                         "%s%s" % (name, SEPARATOR) in k])
+    attr_names = set(('__dict__',))
 
     def __getattribute__(self, name):
         super_method = super(BaseResult, self).__getattribute__
-        if name in ('__dict__', 'is_denorm_attr'):
+        if name in BaseResult.attr_names:
             return super_method(name)
-
-        # At first we need to check if this is denormalized attribute
-        if self.is_denorm_attr(name):
+        try:
+            attr = super_method(name)
+        except AttributeError:
+            name = name.replace('__', DOTATTR_SEPARATOR)
             try:
                 attr = super_method(name)
-                attr_type = type(attr)
             except AttributeError:
-                attr = None
-                attr_type = Null
-            return ResultAttrFactory(attr_type, self)(attr, name)
-
-        # If name is 'some__atr' replace it with
-        # 'someSEPARATORattr'
-        elif name.replace('__', SEPARATOR) in self.__dict__.keys():
-            return super_method(name.replace('__', SEPARATOR))
-
-        else:
-            return super_method(name)
-
+                if not is_denorm_attr(self, name):
+                    raise
+                try:
+                    attr = super_method(name)
+                except AttributeError:
+                    attr = None
+        res = ResultAttr(name, attr, self)
+        return res
 
 if __name__ == '__main__':
     import doctest

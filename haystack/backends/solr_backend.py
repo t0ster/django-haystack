@@ -1,5 +1,6 @@
 import logging
 import sys
+import httplib
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models.loading import get_model
@@ -71,7 +72,14 @@ class SearchBackend(BaseSearchBackend):
         
         if len(docs) > 0:
             try:
-                self.conn.add(docs, commit=commit)
+                # Sometimes jetty returns BadStatusLine, so let's retry
+                for i in range(3):
+                    try:
+                        self.conn.add(docs, commit=commit)
+                        break
+                    except httplib.BadStatusLine:
+                        if i == 2:
+                            raise
             except (IOError, SolrError), e:
                 self.log.error("Failed to add documents to Solr: %s", e)
     

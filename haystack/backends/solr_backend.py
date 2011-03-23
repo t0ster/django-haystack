@@ -66,7 +66,12 @@ class SearchBackend(BaseSearchBackend):
         
         try:
             for obj in iterable:
-                docs.append(index.prepare(obj))
+                try:
+                    obj_to_index = index.prepare(obj)
+                except:
+                    self.log.exception("Error occured while indexing %s" % obj)
+                else:
+                    docs.append(obj_to_index)
         except UnicodeDecodeError:
             sys.stderr.write("Chunk failed.\n")
         

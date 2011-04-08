@@ -85,6 +85,10 @@ class SearchNode(tree.Node):
         return (field, filter_type)
 
 
+REP_HASH = {'pk': 'django_id'}
+REP_REGEX = r'^(%s)((?=__)|$)' % '|'.join(REP_HASH.keys())
+
+
 class SQ(Q, SearchNode):
     """
     Manages an individual condition within a query.
@@ -102,13 +106,12 @@ class SQ(Q, SearchNode):
         - `kwargs`: kwargs dictionary
         """
         new_kwargs = {}
-        rep_hash = {'pk': 'django_id'}
         for key, val in kwargs.items():
             if '__' in key:
                 key = re.sub(ATTR_REPL_REGEX, DOTATTR_SEPARATOR, key)
-            if key in rep_hash:
-                key = rep_hash[key]
-            new_kwargs[key] = val
+            for _rep_key, rep_value in REP_HASH.items():
+                key = re.sub(REP_REGEX, rep_value, key)
+                new_kwargs[key] = val
         return new_kwargs
 
     def __init__(self, *args, **kwargs):
